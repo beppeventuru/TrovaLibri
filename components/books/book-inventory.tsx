@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Box, Check, ChevronDown, CircleHelp, MapPin, PackagePlus, Plus, RotateCcw, Search, X } from "lucide-react";
+import { BookOpen, Box, Check, ChevronDown, CircleHelp, MapPin, PackagePlus, Pencil, Plus, RotateCcw, Search, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { initialLibraryState } from "@/domain/books/seed-books";
 import type { Book as BookRecord, LibraryState } from "@/domain/books/types";
@@ -18,6 +18,7 @@ export function BookInventory() {
   const [filter, setFilter] = useState<Filter>("all");
   const [containerFilter, setContainerFilter] = useState("all");
   const [modal, setModal] = useState<Modal>(null);
+  const [editingBook, setEditingBook] = useState<BookRecord | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -37,6 +38,10 @@ export function BookInventory() {
   const sold = library.books.length - available;
 
   function toggleSold(id: string) { setLibrary((current) => ({ ...current, books: current.books.map((book) => book.id === id ? { ...book, status: book.status === "sold" ? "available" : "sold" } : book) })) }
+  function editTitle(id: string, title: string) {
+    setLibrary((current) => ({ ...current, books: current.books.map((book) => book.id === id ? { ...book, title: title.trim(), uncertain: false } : book) }));
+    setEditingBook(null);
+  }
   function addBook(title: string, containerId: string) {
     const book: BookRecord = { id: crypto.randomUUID(), title: title.trim(), containerId, status: "available", createdAt: new Date().toISOString() };
     setLibrary((current) => ({ ...current, books: [book, ...current.books] })); setContainerFilter("all"); setFilter("all"); setModal(null);
@@ -68,13 +73,14 @@ export function BookInventory() {
           <button className="sold-check" onClick={() => toggleSold(book.id)} aria-label={book.status === "sold" ? `Ripristina ${book.title}` : `Segna ${book.title} come venduto`} aria-pressed={book.status === "sold"}>{book.status === "sold" && <Check size={17} strokeWidth={3} />}</button>
           <div className="book-info"><h3>{book.title}</h3><p><span className="location-dot" data-color={container?.color} /><MapPin size={14} />{container?.name ?? "Senza contenitore"}</p></div>
           {book.uncertain && <span className="uncertain" title="Titolo da verificare sul libro"><CircleHelp size={15} /><span>Da verificare</span></span>}
-          <button className="status-action" onClick={() => toggleSold(book.id)}>{book.status === "sold" ? <><RotateCcw size={16} />Ripristina</> : "Segna venduto"}</button>
+          <div className="row-actions"><button className="edit-action" onClick={() => setEditingBook(book)} aria-label={`Modifica il titolo ${book.title}`}><Pencil size={15} />Modifica</button><button className="status-action" onClick={() => toggleSold(book.id)}>{book.status === "sold" ? <><RotateCcw size={16} />Ripristina</> : "Segna venduto"}</button></div>
         </article> })}</div> : <div className="empty-state"><Search size={30} /><h3>Nessun libro trovato</h3><p>Prova a cambiare ricerca o filtri.</p></div>}
       </section>
     </main>
     <button className="fab" onClick={() => setModal("book")}><Plus size={21} strokeWidth={3} />Aggiungi libro</button>
     {modal === "book" && <BookModal containers={library.containers} onClose={() => setModal(null)} onSubmit={addBook} />}
     {modal === "container" && <ContainerModal onClose={() => setModal(null)} onSubmit={addContainer} />}
+    {editingBook && <EditBookModal book={editingBook} onClose={() => setEditingBook(null)} onSubmit={editTitle} />}
   </div>;
 }
 
@@ -89,4 +95,10 @@ function BookModal({ containers, onClose, onSubmit }: { containers: LibraryState
 function ContainerModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (name: string) => void }) {
   const [name, setName] = useState(""); function submit(event: FormEvent) { event.preventDefault(); if (name.trim()) onSubmit(name) }
   return <ModalFrame title="Nuovo contenitore" subtitle="Aggiungi una posizione per i tuoi libri." onClose={onClose}><form onSubmit={submit} className="modal-form"><label>Nome<input autoFocus required value={name} onChange={(event) => setName(event.target.value)} placeholder="Es. Scatola blu" /></label><button className="primary-button" type="submit"><PackagePlus size={18} />Crea contenitore</button></form></ModalFrame>;
+}
+
+function EditBookModal({ book, onClose, onSubmit }: { book: BookRecord; onClose: () => void; onSubmit: (id: string, title: string) => void }) {
+  const [title, setTitle] = useState(book.title);
+  function submit(event: FormEvent) { event.preventDefault(); if (title.trim()) onSubmit(book.id, title) }
+  return <ModalFrame title="Modifica il titolo" subtitle="Correggi il nome del libro. La modifica verrà salvata su questo dispositivo." onClose={onClose}><form onSubmit={submit} className="modal-form"><label>Titolo<input autoFocus required value={title} onChange={(event) => setTitle(event.target.value)} onFocus={(event) => event.currentTarget.select()} /></label><button className="primary-button" type="submit"><Check size={18} />Salva modifica</button></form></ModalFrame>;
 }
