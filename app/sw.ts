@@ -11,6 +11,7 @@ declare global {
 }
 
 declare const self: ServiceWorkerGlobalScope;
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
@@ -21,7 +22,7 @@ const serwist = new Serwist({
   fallbacks: {
     entries: [
       {
-        url: "/offline",
+        url: `${basePath}/offline/`,
         matcher: ({ request }) => request.destination === "document",
       },
     ],
